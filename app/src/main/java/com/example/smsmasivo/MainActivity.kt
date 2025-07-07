@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.telephony.SmsManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -65,8 +66,13 @@ fun SMSMasivoApp() {
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             result.data?.data?.let { uri ->
-                loadCSVFile(context, uri) { records ->
-                    smsRecords = records
+                val fileName = getFileName(context, uri) ?: ""
+                if (fileName.endsWith(".csv", ignoreCase = true)) {
+                    loadCSVFile(context, uri) { records ->
+                        smsRecords = records
+                    }
+                } else {
+                    Toast.makeText(context, "Solo archivos CSV permitidos", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -100,7 +106,7 @@ fun SMSMasivoApp() {
         Button(
             onClick = {
                 val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                    type = "text/csv"
+                    type = "*/*"
                     addCategory(Intent.CATEGORY_OPENABLE)
                 }
                 csvLauncher.launch(intent)
@@ -213,6 +219,14 @@ fun SMSRecordItem(record: SMSRecord) {
                 )
             }
         }
+    }
+}
+
+fun getFileName(context: android.content.Context, uri: Uri): String? {
+    return context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+        val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+        cursor.moveToFirst()
+        cursor.getString(nameIndex)
     }
 }
 
