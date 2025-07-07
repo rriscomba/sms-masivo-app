@@ -205,9 +205,9 @@ fun SMSMasivoApp() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(16.dp)
     ) {
+        // Header con título e iconos
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -236,9 +236,9 @@ fun SMSMasivoApp() {
             }
         }
         
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         
-        // Botón para cargar CSV
+        // Botones principales
         Button(
             onClick = {
                 val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
@@ -252,9 +252,8 @@ fun SMSMasivoApp() {
             Text("Cargar Archivo CSV")
         }
         
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
         
-        // Botón para enviar SMS
         Button(
             onClick = {
                 if (!hasSMSPermission) {
@@ -295,10 +294,9 @@ fun SMSMasivoApp() {
             Text(if (hasSMSPermission) "Enviar SMS" else "Solicitar Permisos")
         }
         
-        Spacer(modifier = Modifier.height(16.dp))
-        
         // Botón para descargar reporte
         if (smsRecords.isNotEmpty() && smsRecords.any { it.status != "Pendiente" }) {
+            Spacer(modifier = Modifier.height(12.dp))
             Button(
                 onClick = {
                     generateAndShareReport(context, smsRecords)
@@ -311,55 +309,59 @@ fun SMSMasivoApp() {
         
         Spacer(modifier = Modifier.height(16.dp))
         
-        // Información de progreso
-        if (isProcessing || totalBatches > 0) {
-            Card(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
+        // Información compacta en fila
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Progreso (más compacto)
+            if (isProcessing || totalBatches > 0) {
+                Card(
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Text(
-                        text = "Progreso de Envío",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Lote actual: $currentBatch de $totalBatches")
-                    Text("Tamaño de lote: $batchSize mensajes")
-                    Text("Delay entre mensajes: ${delayBetweenMessages/1000}s")
-                    if (isProcessing) {
-                        LinearProgressIndicator(
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                    Column(
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        Text(
+                            text = "Progreso",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
                         )
+                        Text("$currentBatch/$totalBatches", style = MaterialTheme.typography.bodySmall)
+                        Text("Lote: $batchSize | ${delayBetweenMessages/1000}s", style = MaterialTheme.typography.bodySmall)
+                        if (isProcessing) {
+                            LinearProgressIndicator(
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                            )
+                        }
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-        
-        // Reporte de estado
-        if (smsRecords.isNotEmpty()) {
-            val enviados = smsRecords.count { it.status == "Enviado" || it.status == "Entregado" }
-            val fallidos = smsRecords.count { it.status.startsWith("Error") || it.status == "No entregado" }
-            val pendientes = smsRecords.count { it.status == "Pendiente" || it.status == "Enviando..." }
             
-            Card(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
+            // Reporte (más compacto)
+            if (smsRecords.isNotEmpty()) {
+                val enviados = smsRecords.count { it.status == "Enviado" || it.status == "Entregado" }
+                val fallidos = smsRecords.count { it.status.startsWith("Error") || it.status == "No entregado" }
+                val pendientes = smsRecords.count { it.status == "Pendiente" || it.status == "Enviando..." }
+                
+                Card(
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Text(
-                        text = "Reporte de Envío",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Total: ${smsRecords.size}")
-                    Text("Enviados: $enviados", color = MaterialTheme.colorScheme.primary)
-                    Text("Fallidos: $fallidos", color = MaterialTheme.colorScheme.error)
-                    Text("Pendientes: $pendientes")
+                    Column(
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        Text(
+                            text = "Estado",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text("Total: ${smsRecords.size}", style = MaterialTheme.typography.bodySmall)
+                        Row {
+                            Text("✓$enviados ", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
+                            Text("✗$fallidos ", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                            Text("◷$pendientes", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
                 }
             }
         }
