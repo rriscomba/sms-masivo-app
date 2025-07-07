@@ -8,7 +8,7 @@ Aplicación Android para envío masivo de mensajes SMS desde archivos CSV.
 - Envío masivo automatizado con delays entre mensajes
 - Reporte detallado de envíos exitosos y fallidos
 - Compatible con Android 13+
-- Interfaz minimalista con Material Design
+
 
 ## 📋 Formato CSV
 
