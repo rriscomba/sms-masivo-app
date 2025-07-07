@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">SMS Masivo</string>
+    <string name="load_csv">Cargar Archivo CSV</string>
+    <string name="send_sms">Enviar SMS</string>
+    <string name="request_permissions">Solicitar Permisos</string>
+    <string name="sending_report">Reporte de Envío</string>
+    <string name="total">Total:</string>
+    <string name="sent">Enviados:</string>
+    <string name="failed">Fallidos:</string>
+    <string name="pending">Pendientes:</string>
+    <string name="status_pending">Pendiente</string>
+    <string name="status_sent">Enviado</string>
+    <string name="status_error">Error</string>
+    <string name="csv_loaded">CSV cargado: %1$d registros</string>
+    <string name="csv_error">Error al cargar CSV: %1$s</string>
+    <string name="sms_permission_required">Permiso SMS requerido</string>
+</resources>
