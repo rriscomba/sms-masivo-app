@@ -2,11 +2,14 @@ package com.example.smsmasivo
 
 import android.Manifest
 import android.app.Activity
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
-import android.os.Environment
 import android.provider.OpenableColumns
 import android.telephony.SmsManager
 import android.widget.Toast
@@ -17,6 +20,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,13 +41,108 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class MainActivity : ComponentActivity() {
+    private lateinit var smsSentReceiver: BroadcastReceiver
+    private lateinit var smsDeliveredReceiver: BroadcastReceiver
+    
+    companion object {
+        const val SMS_SENT = "SMS_SENT"
+        const val SMS_DELIVERED = "SMS_DELIVERED"
+        var smsRecordsGlobal = mutableListOf<SMSRecord>()
+        var updateCallback: ((List<SMSRecord>) -> Unit)? = null
+    }
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        setupSMSReceivers()
+        
         setContent {
             MaterialTheme {
                 SMSMasivoApp()
             }
         }
+    }
+    
+    private fun setupSMSReceivers() {
+        smsSentReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val index = intent?.getIntExtra("sms_index", -1) ?: -1
+                if (index >= 0 && index < smsRecordsGlobal.size) {
+                    val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
+                    val currentTime = dateFormat.format(Date())
+                    
+                    when (resultCode) {
+                        Activity.RESULT_OK -> {
+                            smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(
+                                status = "Enviado", 
+                                sentDateTime = currentTime
+                            )
+                        }
+                        SmsManager.RESULT_ERROR_GENERIC_FAILURE -> {
+                            smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(
+                                status = "Error: Fallo genérico", 
+                                sentDateTime = currentTime
+                            )
+                        }
+                        SmsManager.RESULT_ERROR_NO_SERVICE -> {
+                            smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(
+                                status = "Error: Sin servicio", 
+                                sentDateTime = currentTime
+                            )
+                        }
+                        SmsManager.RESULT_ERROR_NULL_PDU -> {
+                            smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(
+                                status = "Error: PDU nulo", 
+                                sentDateTime = currentTime
+                            )
+                        }
+                        SmsManager.RESULT_ERROR_RADIO_OFF -> {
+                            smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(
+                                status = "Error: Radio apagado", 
+                                sentDateTime = currentTime
+                            )
+                        }
+                        else -> {
+                            smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(
+                                status = "Error: Desconocido", 
+                                sentDateTime = currentTime
+                            )
+                        }
+                    }
+                    updateCallback?.invoke(smsRecordsGlobal.toList())
+                }
+            }
+        }
+        
+        smsDeliveredReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val index = intent?.getIntExtra("sms_index", -1) ?: -1
+                if (index >= 0 && index < smsRecordsGlobal.size) {
+                    when (resultCode) {
+                        Activity.RESULT_OK -> {
+                            if (smsRecordsGlobal[index].status == "Enviado") {
+                                smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(status = "Entregado")
+                            }
+                        }
+                        Activity.RESULT_CANCELED -> {
+                            if (smsRecordsGlobal[index].status == "Enviado") {
+                                smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(status = "No entregado")
+                            }
+                        }
+                    }
+                    updateCallback?.invoke(smsRecordsGlobal.toList())
+                }
+            }
+        }
+        
+        registerReceiver(smsSentReceiver, IntentFilter(SMS_SENT))
+        registerReceiver(smsDeliveredReceiver, IntentFilter(SMS_DELIVERED))
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(smsSentReceiver)
+        unregisterReceiver(smsDeliveredReceiver)
     }
 }
 
@@ -60,6 +161,13 @@ fun SMSMasivoApp() {
     
     var smsRecords by remember { mutableStateOf(listOf<SMSRecord>()) }
     var isProcessing by remember { mutableStateOf(false) }
+    var currentBatch by remember { mutableStateOf(0) }
+    var totalBatches by remember { mutableStateOf(0) }
+    var showBatchDialog by remember { mutableStateOf(false) }
+    var showAboutDialog by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
+    var batchSize by remember { mutableStateOf(10) }
+    var delayBetweenMessages by remember { mutableStateOf(2000L) }
     var hasSMSPermission by remember { 
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
@@ -100,11 +208,33 @@ fun SMSMasivoApp() {
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = "SMS Masivo",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "SMS Masivo",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
+            )
+            
+            Row {
+                IconButton(onClick = { showSettingsDialog = true }) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Configuración"
+                    )
+                }
+                
+                IconButton(onClick = { showAboutDialog = true }) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "Acerca de"
+                    )
+                }
+            }
+        }
         
         Spacer(modifier = Modifier.height(24.dp))
         
@@ -124,20 +254,6 @@ fun SMSMasivoApp() {
         
         Spacer(modifier = Modifier.height(16.dp))
         
-        // Botón para descargar reporte
-        if (smsRecords.isNotEmpty() && smsRecords.any { it.status != "Pendiente" }) {
-            Button(
-                onClick = {
-                    generateAndShareReport(context, smsRecords)
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Descargar Reporte CSV")
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
         // Botón para enviar SMS
         Button(
             onClick = {
@@ -145,8 +261,23 @@ fun SMSMasivoApp() {
                     permissionLauncher.launch(Manifest.permission.SEND_SMS)
                 } else {
                     scope.launch {
-                        sendSMSBatch(smsRecords) { updatedRecords ->
+                        MainActivity.smsRecordsGlobal = smsRecords.toMutableList()
+                        MainActivity.updateCallback = { updatedRecords ->
                             smsRecords = updatedRecords
+                        }
+                        
+                        totalBatches = (smsRecords.size + batchSize - 1) / batchSize
+                        currentBatch = 1
+                        isProcessing = true
+                        
+                        sendSMSInBatches(context, smsRecords, batchSize, delayBetweenMessages) { batch, completed ->
+                            currentBatch = batch
+                            if (completed) {
+                                isProcessing = false
+                                if (batch < totalBatches) {
+                                    showBatchDialog = true
+                                }
+                            }
                         }
                     }
                 }
@@ -166,11 +297,52 @@ fun SMSMasivoApp() {
         
         Spacer(modifier = Modifier.height(16.dp))
         
+        // Botón para descargar reporte
+        if (smsRecords.isNotEmpty() && smsRecords.any { it.status != "Pendiente" }) {
+            Button(
+                onClick = {
+                    generateAndShareReport(context, smsRecords)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Descargar Reporte CSV")
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Información de progreso
+        if (isProcessing || totalBatches > 0) {
+            Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "Progreso de Envío",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Lote actual: $currentBatch de $totalBatches")
+                    Text("Tamaño de lote: $batchSize mensajes")
+                    Text("Delay entre mensajes: ${delayBetweenMessages/1000}s")
+                    if (isProcessing) {
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+        
         // Reporte de estado
         if (smsRecords.isNotEmpty()) {
-            val enviados = smsRecords.count { it.status == "Enviado" }
-            val fallidos = smsRecords.count { it.status == "Error" }
-            val pendientes = smsRecords.count { it.status == "Pendiente" }
+            val enviados = smsRecords.count { it.status == "Enviado" || it.status == "Entregado" }
+            val fallidos = smsRecords.count { it.status.startsWith("Error") || it.status == "No entregado" }
+            val pendientes = smsRecords.count { it.status == "Pendiente" || it.status == "Enviando..." }
             
             Card(
                 modifier = Modifier.fillMaxWidth()
@@ -193,6 +365,149 @@ fun SMSMasivoApp() {
         }
         
         Spacer(modifier = Modifier.height(16.dp))
+        
+        // Diálogo de Configuración
+        if (showSettingsDialog) {
+            AlertDialog(
+                onDismissRequest = { showSettingsDialog = false },
+                title = { Text("Configuración") },
+                text = { 
+                    Column {
+                        Text(
+                            text = "Tamaño de lote:",
+                            fontWeight = FontWeight.Bold
+                        )
+                        Slider(
+                            value = batchSize.toFloat(),
+                            onValueChange = { batchSize = it.toInt() },
+                            valueRange = 1f..20f,
+                            steps = 18
+                        )
+                        Text("$batchSize mensajes por lote")
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        Text(
+                            text = "Delay entre mensajes:",
+                            fontWeight = FontWeight.Bold
+                        )
+                        Slider(
+                            value = delayBetweenMessages.toFloat() / 1000f,
+                            onValueChange = { delayBetweenMessages = (it * 1000).toLong() },
+                            valueRange = 1f..10f,
+                            steps = 17
+                        )
+                        Text("${delayBetweenMessages/1000} segundos")
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        Text(
+                            text = "Recomendaciones:",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "• Lotes pequeños (5-10): Más estable\n• Lotes grandes (15-20): Más rápido\n• Delay alto: Evita bloqueos de operadora",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showSettingsDialog = false }) {
+                        Text("Guardar")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { 
+                        batchSize = 10
+                        delayBetweenMessages = 2000L
+                        showSettingsDialog = false 
+                    }) {
+                        Text("Restaurar")
+                    }
+                }
+            )
+        }
+        
+        // Diálogo de continuación de lote
+        if (showBatchDialog) {
+            AlertDialog(
+                onDismissRequest = { showBatchDialog = false },
+                title = { Text("Lote Completado") },
+                text = { 
+                    Text("Lote $currentBatch de $totalBatches completado.\n¿Desea continuar con el siguiente lote?") 
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showBatchDialog = false
+                            scope.launch {
+                                isProcessing = true
+                                sendSMSInBatches(context, smsRecords, batchSize, delayBetweenMessages, currentBatch) { batch, completed ->
+                                    currentBatch = batch
+                                    if (completed) {
+                                        isProcessing = false
+                                        if (batch < totalBatches) {
+                                            showBatchDialog = true
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    ) {
+                        Text("Continuar")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showBatchDialog = false }
+                    ) {
+                        Text("Detener")
+                    }
+                }
+            )
+        }
+        
+        // Diálogo Acerca de
+        if (showAboutDialog) {
+            AlertDialog(
+                onDismissRequest = { showAboutDialog = false },
+                title = { Text("Acerca de SMS Masivo") },
+                text = { 
+                    Column {
+                        Text(
+                            text = "SMS Masivo v1.0",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Aplicación para envío masivo de mensajes SMS desde archivos CSV.")
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Desarrollador:",
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text("Raúl Risco Castillo")
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Licencia:",
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text("Apache License 2.0")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Licensed under the Apache License, Version 2.0 (the \"License\"); you may not use this file except in compliance with the License. You may obtain a copy of the License at:\n\nhttp://www.apache.org/licenses/LICENSE-2.0\n\nUnless required by applicable law or agreed to in writing, software distributed under the License is distributed on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showAboutDialog = false }) {
+                        Text("Cerrar")
+                    }
+                }
+            )
+        }
         
         // Lista de registros
         LazyColumn {
@@ -223,13 +538,19 @@ fun SMSRecordItem(record: SMSRecord) {
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 2
             )
+            if (record.sentDateTime.isNotEmpty()) {
+                Text(
+                    text = record.sentDateTime,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
-                val statusColor = when (record.status) {
-                    "Enviado" -> MaterialTheme.colorScheme.primary
-                    "Error" -> MaterialTheme.colorScheme.error
+                val statusColor = when {
+                    record.status == "Enviado" || record.status == "Entregado" -> MaterialTheme.colorScheme.primary
+                    record.status.startsWith("Error") || record.status == "No entregado" -> MaterialTheme.colorScheme.error
                     else -> MaterialTheme.colorScheme.onSurface
                 }
                 Text(
@@ -263,7 +584,6 @@ fun loadCSVFile(context: android.content.Context, uri: Uri, onResult: (List<SMSR
                     val phoneNumber = parts[0].trim().replace("\"", "")
                     val message = parts[1].trim().replace("\"", "")
                     
-                    // Validar número telefónico
                     if (phoneNumber.isNotEmpty() && message.isNotEmpty()) {
                         records.add(SMSRecord(phoneNumber, message))
                     }
@@ -278,40 +598,115 @@ fun loadCSVFile(context: android.content.Context, uri: Uri, onResult: (List<SMSR
     }
 }
 
-suspend fun sendSMSBatch(
+suspend fun sendSMSInBatches(
+    context: android.content.Context,
     records: List<SMSRecord>,
+    batchSize: Int,
+    delayBetweenMessages: Long,
+    startBatch: Int = 1,
+    onBatchComplete: (currentBatch: Int, isCompleted: Boolean) -> Unit
+) {
+    val totalBatches = (records.size + batchSize - 1) / batchSize
+    
+    for (batch in startBatch..totalBatches) {
+        val startIndex = (batch - 1) * batchSize
+        val endIndex = minOf(startIndex + batchSize, records.size)
+        val batchRecords = records.subList(startIndex, endIndex)
+        
+        sendSMSBatch(context, batchRecords, startIndex, delayBetweenMessages) { }
+        
+        var allCompleted = false
+        var attempts = 0
+        val maxAttempts = 30
+        
+        while (!allCompleted && attempts < maxAttempts) {
+            delay(1000)
+            attempts++
+            
+            allCompleted = (startIndex until endIndex).all { index ->
+                val status = MainActivity.smsRecordsGlobal[index].status
+                status != "Pendiente" && status != "Enviando..."
+            }
+        }
+        
+        onBatchComplete(batch, true)
+        
+        if (batch < totalBatches) {
+            break
+        }
+    }
+}
+
+suspend fun sendSMSBatch(
+    context: android.content.Context,
+    records: List<SMSRecord>,
+    startIndex: Int = 0,
+    delayBetweenMessages: Long = 2000L,
     onUpdate: (List<SMSRecord>) -> Unit
 ) {
     val smsManager = SmsManager.getDefault()
-    val updatedRecords = records.toMutableList()
-    val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
     
-    for (i in updatedRecords.indices) {
+    for (i in records.indices) {
         try {
-            val record = updatedRecords[i]
-            val currentTime = dateFormat.format(Date())
+            val record = records[i]
+            val globalIndex = startIndex + i
             
-            // Dividir mensaje si es muy largo (160 caracteres máximo)
+            val sentIntent = PendingIntent.getBroadcast(
+                context, 
+                globalIndex, 
+                Intent(MainActivity.SMS_SENT).putExtra("sms_index", globalIndex), 
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            
+            val deliveredIntent = PendingIntent.getBroadcast(
+                context, 
+                globalIndex, 
+                Intent(MainActivity.SMS_DELIVERED).putExtra("sms_index", globalIndex), 
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            
             val parts = smsManager.divideMessage(record.message)
             
             if (parts.size == 1) {
-                smsManager.sendTextMessage(record.phoneNumber, null, record.message, null, null)
+                smsManager.sendTextMessage(
+                    record.phoneNumber, 
+                    null, 
+                    record.message, 
+                    sentIntent, 
+                    deliveredIntent
+                )
             } else {
-                smsManager.sendMultipartTextMessage(record.phoneNumber, null, parts, null, null)
+                val sentIntents = arrayListOf<PendingIntent>()
+                val deliveredIntents = arrayListOf<PendingIntent>()
+                repeat(parts.size) { 
+                    sentIntents.add(sentIntent)
+                    deliveredIntents.add(deliveredIntent)
+                }
+                
+                smsManager.sendMultipartTextMessage(
+                    record.phoneNumber, 
+                    null, 
+                    parts, 
+                    sentIntents, 
+                    deliveredIntents
+                )
             }
             
-            updatedRecords[i] = record.copy(status = "Enviado", sentDateTime = currentTime)
+            MainActivity.smsRecordsGlobal[globalIndex] = record.copy(status = "Enviando...")
+            MainActivity.updateCallback?.invoke(MainActivity.smsRecordsGlobal.toList())
             
         } catch (e: Exception) {
+            val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
             val currentTime = dateFormat.format(Date())
-            updatedRecords[i] = updatedRecords[i].copy(status = "Error", sentDateTime = currentTime)
+            val globalIndex = startIndex + i
+            MainActivity.smsRecordsGlobal[globalIndex] = MainActivity.smsRecordsGlobal[globalIndex].copy(
+                status = "Error: ${e.message}", 
+                sentDateTime = currentTime
+            )
+            MainActivity.updateCallback?.invoke(MainActivity.smsRecordsGlobal.toList())
         }
         
-        // Actualizar UI
-        onUpdate(updatedRecords.toList())
-        
-        // Delay para evitar restricciones de operadoras (1 segundo entre mensajes)
-        delay(1000)
+        delay(delayBetweenMessages)
     }
 }
 
@@ -322,28 +717,23 @@ fun generateAndShareReport(context: android.content.Context, records: List<SMSRe
         val fileName = "SMS${currentTime}.csv"
         
         val csvContent = buildString {
-            // Encabezados
             appendLine("Numero,Mensaje,Estado,FechaHora")
             
-            // Datos
             records.forEach { record ->
                 val escapedMessage = "\"${record.message.replace("\"", "\"\"")}\""
                 appendLine("${record.phoneNumber},$escapedMessage,${record.status},${record.sentDateTime}")
             }
         }
         
-        // Crear archivo en directorio interno de la app
         val file = File(context.filesDir, fileName)
         file.writeText(csvContent)
         
-        // Crear URI usando FileProvider
         val uri = FileProvider.getUriForFile(
             context,
             "${context.packageName}.fileprovider",
             file
         )
         
-        // Compartir archivo
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "text/csv"
             putExtra(Intent.EXTRA_STREAM, uri)
