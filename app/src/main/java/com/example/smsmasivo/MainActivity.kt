@@ -14,7 +14,7 @@ import android.provider.OpenableColumns
 import android.telephony.SmsManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.LauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Help
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -157,7 +158,7 @@ data class SMSRecord(
 @Composable
 fun SMSMasivoApp() {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val scope = CoroutineScope()
     
     var smsRecords by remember { mutableStateOf(listOf<SMSRecord>()) }
     var isProcessing by remember { mutableStateOf(false) }
@@ -193,8 +194,10 @@ fun SMSMasivoApp() {
         }
     }
     
+    var showSettingsDialog by remember { mutableStateOf(false) }
+    
     // Launcher para permisos SMS
-    val permissionLauncher = rememberLauncherForActivityResult(
+    val permissionLauncher = LauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         hasSMSPermission = isGranted
