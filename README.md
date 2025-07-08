@@ -48,9 +48,9 @@ cd sms-masivo-app
 
 ## 🔧 Uso
 
-1. **Preparar CSV** - Crea archivo con formato correcto
-2. **Cargar archivo** - Toca "Cargar Archivo CSV"
-3. **Configurar** - Ajusta lotes y delays (⚙️)
+1. **Preparar CSV** - Crea archivo con formato correcto en tu ordenador o celular, guardalo en tu celular.
+2. **Cargar archivo** - Toca "Cargar Archivo CSV", y carga el archivo guardado anteriormente
+3. **Configurar** - No se recomienda ajustar lotes y delays (⚙️), pero puedes probar.
 4. **Enviar** - Toca "Enviar SMS" y concede permisos
 5. **Monitorear** - Observa progreso en tiempo real
 6. **Exportar** - Descarga reporte con resultados
