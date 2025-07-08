@@ -67,85 +67,89 @@ class MainActivity : ComponentActivity() {
     }
     
     private fun setupSMSReceivers() {
-        smsSentReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                val index = intent?.getIntExtra("sms_index", -1) ?: -1
-                if (index >= 0 && index < smsRecordsGlobal.size) {
-                    val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
-                    val currentTime = dateFormat.format(Date())
-                    
-                    when (resultCode) {
-                        Activity.RESULT_OK -> {
-                            smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(
-                                status = "Enviado", 
-                                sentDateTime = currentTime
-                            )
-                        }
-                        SmsManager.RESULT_ERROR_GENERIC_FAILURE -> {
-                            smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(
-                                status = "Error: Fallo genérico", 
-                                sentDateTime = currentTime
-                            )
-                        }
-                        SmsManager.RESULT_ERROR_NO_SERVICE -> {
-                            smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(
-                                status = "Error: Sin servicio", 
-                                sentDateTime = currentTime
-                            )
-                        }
-                        SmsManager.RESULT_ERROR_NULL_PDU -> {
-                            smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(
-                                status = "Error: PDU nulo", 
-                                sentDateTime = currentTime
-                            )
-                        }
-                        SmsManager.RESULT_ERROR_RADIO_OFF -> {
-                            smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(
-                                status = "Error: Radio apagado", 
-                                sentDateTime = currentTime
-                            )
-                        }
-                        else -> {
-                            smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(
-                                status = "Error: Desconocido", 
-                                sentDateTime = currentTime
-                            )
-                        }
+    smsSentReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val index = intent?.getIntExtra("sms_index", -1) ?: -1
+            if (index >= 0 && index < smsRecordsGlobal.size) {
+                val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
+                val currentTime = dateFormat.format(Date())
+                
+                when (resultCode) {
+                    Activity.RESULT_OK -> {
+                        smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(
+                            status = "Enviado", 
+                            sentDateTime = currentTime
+                        )
                     }
-                    updateCallback?.invoke(smsRecordsGlobal.toList())
-                }
-            }
-        }
-        
-        smsDeliveredReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                val index = intent?.getIntExtra("sms_index", -1) ?: -1
-                if (index >= 0 && index < smsRecordsGlobal.size) {
-                    when (resultCode) {
-                        Activity.RESULT_OK -> {
-                            if (smsRecordsGlobal[index].status == "Enviado") {
-                                smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(status = "Entregado")
-                            }
-                        }
-                        Activity.RESULT_CANCELED -> {
-                            if (smsRecordsGlobal[index].status == "Enviado") {
-                                smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(status = "No entregado")
-                            }
-                        }
+                    SmsManager.RESULT_ERROR_GENERIC_FAILURE -> {
+                        smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(
+                            status = "Error: Fallo genérico", 
+                            sentDateTime = currentTime
+                        )
                     }
-                    updateCallback?.invoke(smsRecordsGlobal.toList())
+                    SmsManager.RESULT_ERROR_NO_SERVICE -> {
+                        smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(
+                            status = "Error: Sin servicio", 
+                            sentDateTime = currentTime
+                        )
+                    }
+                    SmsManager.RESULT_ERROR_NULL_PDU -> {
+                        smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(
+                            status = "Error: PDU nulo", 
+                            sentDateTime = currentTime
+                        )
+                    }
+                    SmsManager.RESULT_ERROR_RADIO_OFF -> {
+                        smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(
+                            status = "Error: Radio apagado", 
+                            sentDateTime = currentTime
+                        )
+                    }
+                    else -> {
+                        smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(
+                            status = "Error: Desconocido", 
+                            sentDateTime = currentTime
+                        )
+                    }
                 }
+                updateCallback?.invoke(smsRecordsGlobal.toList())
             }
-        }
-        
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(smsSentReceiver, IntentFilter(SMS_SENT), Context.RECEIVER_NOT_EXPORTED)
-            registerReceiver(smsDeliveredReceiver, IntentFilter(SMS_DELIVERED), Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(smsSentReceiver, IntentFilter(SMS_SENT))
-            registerReceiver(smsDeliveredReceiver, IntentFilter(SMS_DELIVERED))
         }
     }
+    
+    smsDeliveredReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val index = intent?.getIntExtra("sms_index", -1) ?: -1
+            if (index >= 0 && index < smsRecordsGlobal.size) {
+                when (resultCode) {
+                    Activity.RESULT_OK -> {
+                        if (smsRecordsGlobal[index].status == "Enviado") {
+                            smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(status = "Entregado")
+                        }
+                    }
+                    Activity.RESULT_CANCELED -> {
+                        if (smsRecordsGlobal[index].status == "Enviado") {
+                            smsRecordsGlobal[index] = smsRecordsGlobal[index].copy(status = "No entregado")
+                        }
+                    }
+                }
+                updateCallback?.invoke(smsRecordsGlobal.toList())
+            }
+        }
+    }
+    
+    // Registrar con flags específicos para Android 14
+    val sentFilter = IntentFilter(SMS_SENT)
+    val deliveredFilter = IntentFilter(SMS_DELIVERED)
+    
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        registerReceiver(smsSentReceiver, sentFilter, Context.RECEIVER_NOT_EXPORTED)
+        registerReceiver(smsDeliveredReceiver, deliveredFilter, Context.RECEIVER_NOT_EXPORTED)
+    } else {
+        registerReceiver(smsSentReceiver, sentFilter)
+        registerReceiver(smsDeliveredReceiver, deliveredFilter)
+    }
+}
     
     override fun onDestroy() {
         super.onDestroy()
@@ -816,14 +820,22 @@ suspend fun sendSMSBatch(
                 context, 
                 globalIndex, 
                 Intent(MainActivity.SMS_SENT).putExtra("sms_index", globalIndex), 
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                } else {
+                    PendingIntent.FLAG_UPDATE_CURRENT
+                }
             )
             
             val deliveredIntent = PendingIntent.getBroadcast(
                 context, 
                 globalIndex, 
                 Intent(MainActivity.SMS_DELIVERED).putExtra("sms_index", globalIndex), 
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                } else {
+                    PendingIntent.FLAG_UPDATE_CURRENT
+                }
             )
             
             val parts = smsManager.divideMessage(record.message)
