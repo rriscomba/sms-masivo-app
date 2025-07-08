@@ -14,7 +14,7 @@ Aplicación Android nativa para envío masivo de mensajes SMS desde archivos CSV
 - **✅ Verificación real** - Confirma envío y entrega de cada mensaje
 - **📊 Reportes** - Exporta resultados con fecha/hora y estado
 - **⚙️ Configuración** - Ajusta tamaño de lote y delays
-- **🔒 Seguro** - Maneja permisos y restricciones de operadoras
+
 
 ## 📥 Instalación
 
