@@ -160,7 +160,7 @@ data class SMSRecord(
 @Composable
 fun SMSMasivoApp() {
     val context = LocalContext.current
-    val scope = CoroutineScope()
+    val scope = rememberCoroutineScope()
     
     var smsRecords by remember { mutableStateOf(listOf<SMSRecord>()) }
     var isProcessing by remember { mutableStateOf(false) }
@@ -179,7 +179,7 @@ fun SMSMasivoApp() {
     }
     
     // Launcher para seleccionar archivo CSV
-    val val csvLauncher: ActivityResultLauncher<Intent> = rememberLauncherForActivityResult(
+    val csvLauncher: ActivityResultLauncher<Intent> = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
@@ -228,7 +228,7 @@ fun SMSMasivoApp() {
             Row {
                 IconButton(onClick = { showHelpDialog = true }) {
                     Icon(
-                        imageVector = Icons.Default.Help,
+                        imageVector = Icons.filled.Help,
                         contentDescription = "Ayuda"
                     )
                 }
