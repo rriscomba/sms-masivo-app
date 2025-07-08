@@ -14,8 +14,9 @@ import android.provider.OpenableColumns
 import android.telephony.SmsManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.LauncherForActivityResult
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -33,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.BufferedReader
@@ -177,7 +179,7 @@ fun SMSMasivoApp() {
     }
     
     // Launcher para seleccionar archivo CSV
-    val csvLauncher = rememberLauncherForActivityResult(
+    val val csvLauncher: ActivityResultLauncher<Intent> = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
@@ -197,7 +199,7 @@ fun SMSMasivoApp() {
     var showSettingsDialog by remember { mutableStateOf(false) }
     
     // Launcher para permisos SMS
-    val permissionLauncher = LauncherForActivityResult(
+    val permissionLauncher: ActivityResultLauncher<String> = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         hasSMSPermission = isGranted
@@ -313,12 +315,14 @@ fun SMSMasivoApp() {
                         currentBatch = 1
                         isProcessing = true
                         
-                        sendSMSInBatches(context, smsRecords, batchSize, delayBetweenMessages) { batch, completed ->
-                            currentBatch = batch
-                            if (completed) {
-                                isProcessing = false
-                                if (batch < totalBatches) {
-                                    showBatchDialog = true
+                        scope.launch {
+                            sendSMSInBatches(context, smsRecords, batchSize, delayBetweenMessages) { batch, completed ->
+                                currentBatch = batch
+                                if (completed) {
+                                    isProcessing = false
+                                    if (batch < totalBatches) {
+                                        showBatchDialog = true
+                                    }
                                 }
                             }
                         }
