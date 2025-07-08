@@ -22,7 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Help
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -165,7 +165,8 @@ fun SMSMasivoApp() {
     var totalBatches by remember { mutableStateOf(0) }
     var showBatchDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
-    var showSettingsDialog by remember { mutableStateOf(false) }
+    var showHelpDialog by remember { mutableStateOf(false) }
+    var showFirstTimeHelp by remember { mutableStateOf(smsRecords.isEmpty()) }
     var batchSize by remember { mutableStateOf(10) }
     var delayBetweenMessages by remember { mutableStateOf(2000L) }
     var hasSMSPermission by remember { 
@@ -220,6 +221,13 @@ fun SMSMasivoApp() {
             )
             
             Row {
+                IconButton(onClick = { showHelpDialog = true }) {
+                    Icon(
+                        imageVector = Icons.Default.Help,
+                        contentDescription = "Ayuda"
+                    )
+                }
+                
                 IconButton(onClick = { showSettingsDialog = true }) {
                     Icon(
                         imageVector = Icons.Default.Settings,
@@ -236,7 +244,40 @@ fun SMSMasivoApp() {
             }
         }
         
-        Spacer(modifier = Modifier.height(16.dp))
+        // Ayuda inicial para nuevos usuarios
+        if (showFirstTimeHelp && smsRecords.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "💡 ¿Cómo empezar?",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "1. Crea un archivo CSV con formato:\n   +5511999999999,Tu mensaje aquí\n\n2. Carga el archivo\n3. Envía los SMS",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                        IconButton(onClick = { showFirstTimeHelp = false }) {
+                            Text("✕", style = MaterialTheme.typography.titleMedium)
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
         
         // Botones principales
         Button(
@@ -370,6 +411,77 @@ fun SMSMasivoApp() {
         }
         
         Spacer(modifier = Modifier.height(16.dp))
+        
+        // Diálogo de Ayuda
+        if (showHelpDialog) {
+            AlertDialog(
+                onDismissRequest = { showHelpDialog = false },
+                title = { Text("📋 Guía de Uso") },
+                text = { 
+                    LazyColumn {
+                        item {
+                            Text(
+                                text = "📁 Formato del archivo CSV:",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "• Separado por comas\n• Sin encabezados\n• Codificación: UTF-8\n• Extensión: .csv",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            
+                            Spacer(modifier = Modifier.height(12.dp))
+                            
+                            Text(
+                                text = "📝 Ejemplo de contenido:",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                Text(
+                                    text = "+5511999999999,Hola Juan!\n+5521888888888,\"Mensaje con, comas\"\n+5531777777777,Recordatorio cita",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(8.dp)
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(12.dp))
+                            
+                            Text(
+                                text = "⚡ Configuración recomendada:",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                            Text(
+                                text = "• Lotes de 5-10 SMS\n• Delay de 2-3 segundos\n• Evita números duplicados",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            
+                            Spacer(modifier = Modifier.height(12.dp))
+                            
+                            Text(
+                                text = "⚠️ Importante:",
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                            Text(
+                                text = "• Usa números con código de país\n• Respeta políticas anti-spam\n• Verifica permisos de contactos",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showHelpDialog = false }) {
+                        Text("Entendido")
+                    }
+                }
+            )
+        }
         
         // Diálogo de Configuración
         if (showSettingsDialog) {
@@ -514,13 +626,42 @@ fun SMSMasivoApp() {
             )
         }
         
-        // Lista de registros (con scroll automático)
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            items(smsRecords) { record ->
-                SMSRecordItem(record = record)
+        // Estado vacío mejorado
+        if (smsRecords.isEmpty()) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "📱",
+                    style = MaterialTheme.typography.displayLarge
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "¡Envía SMS masivos fácilmente!",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Carga un archivo CSV para comenzar",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                TextButton(onClick = { showHelpDialog = true }) {
+                    Text("🔍 Ver formato de archivo")
+                }
+            }
+        } else {
+            // Lista de registros (con scroll automático)
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                items(smsRecords) { record ->
+                    SMSRecordItem(record = record)
+                }
             }
         }
     }
