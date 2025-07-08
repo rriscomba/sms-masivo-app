@@ -294,14 +294,17 @@ fun SMSMasivoApp() {
             Text(if (hasSMSPermission) "Enviar SMS" else "Solicitar Permisos")
         }
         
-        // Botón para descargar reporte
-        if (smsRecords.isNotEmpty() && smsRecords.any { it.status != "Pendiente" }) {
+        // Botón para descargar reporte (siempre visible si hay registros procesados)
+        if (smsRecords.isNotEmpty() && smsRecords.any { it.status != "Pendiente" && it.status != "Enviando..." }) {
             Spacer(modifier = Modifier.height(12.dp))
             Button(
                 onClick = {
                     generateAndShareReport(context, smsRecords)
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondary
+                )
             ) {
                 Text("Descargar Reporte CSV")
             }
@@ -511,8 +514,11 @@ fun SMSMasivoApp() {
             )
         }
         
-        // Lista de registros
-        LazyColumn {
+        // Lista de registros (con scroll automático)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
             items(smsRecords) { record ->
                 SMSRecordItem(record = record)
             }
