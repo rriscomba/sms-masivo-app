@@ -23,7 +23,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Help
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -228,7 +227,7 @@ fun SMSMasivoApp() {
             Row {
                 IconButton(onClick = { showHelpDialog = true }) {
                     Icon(
-                        imageVector = Icons.filled.Help,
+                        imageVector = Icons.Default.Info,
                         contentDescription = "Ayuda"
                     )
                 }
