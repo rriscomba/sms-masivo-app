@@ -1,6 +1,7 @@
 package com.example.smsmasivo
 
 import android.Manifest
+import android.os.Build
 import android.app.Activity
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -137,8 +138,13 @@ class MainActivity : ComponentActivity() {
             }
         }
         
-        registerReceiver(smsSentReceiver, IntentFilter(SMS_SENT))
-        registerReceiver(smsDeliveredReceiver, IntentFilter(SMS_DELIVERED))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(smsSentReceiver, IntentFilter(SMS_SENT), Context.RECEIVER_NOT_EXPORTED)
+            registerReceiver(smsDeliveredReceiver, IntentFilter(SMS_DELIVERED), Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(smsSentReceiver, IntentFilter(SMS_SENT))
+            registerReceiver(smsDeliveredReceiver, IntentFilter(SMS_DELIVERED))
+        }
     }
     
     override fun onDestroy() {
