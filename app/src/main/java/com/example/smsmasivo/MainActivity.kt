@@ -819,23 +819,21 @@ suspend fun sendSMSBatch(
             val sentIntent = PendingIntent.getBroadcast(
                 context, 
                 globalIndex, 
-                Intent(MainActivity.SMS_SENT).putExtra("sms_index", globalIndex), 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-                } else {
-                    PendingIntent.FLAG_UPDATE_CURRENT
-                }
+                Intent(MainActivity.SMS_SENT).apply {
+                    setPackage(context.packageName) // Hacer el intent explícito
+                    putExtra("sms_index", globalIndex)
+                }, 
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             
             val deliveredIntent = PendingIntent.getBroadcast(
                 context, 
                 globalIndex, 
-                Intent(MainActivity.SMS_DELIVERED).putExtra("sms_index", globalIndex), 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-                } else {
-                    PendingIntent.FLAG_UPDATE_CURRENT
-                }
+                Intent(MainActivity.SMS_DELIVERED).apply {
+                    setPackage(context.packageName) // Hacer el intent explícito
+                    putExtra("sms_index", globalIndex)
+                }, 
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             
             val parts = smsManager.divideMessage(record.message)
