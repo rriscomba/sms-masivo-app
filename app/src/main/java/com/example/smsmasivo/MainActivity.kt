@@ -576,7 +576,7 @@ fun SMSMasivoApp() {
                             showBatchDialog = false
                             scope.launch {
                                 isProcessing = true
-                                sendSMSInBatches(context, smsRecords, batchSize, delayBetweenMessages, currentBatch) { batch, completed ->
+                                sendSMSInBatches(context, smsRecords, batchSize, delayBetweenMessages, currentBatch + 1) { batch, completed ->
                                     currentBatch = batch
                                     if (completed) {
                                         isProcessing = false
